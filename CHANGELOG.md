@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-10-28
+### Production Release
+- **Milestone Production Release v1.8.0 (Fanatec DD, Quest Recenter & SimHub ShakeIt)**:
+  - **SimHub ShakeIt Dynamic 3D Tactile Telemetry**: Integrated continuous 60 Hz UDP telemetry pipeline emitting standardized 311-byte Forza Motorsport Dash packets on ports 8000 & 5606. Derives true local 3D vehicle acceleration (vertical heave $a_y$, longitudinal surge $a_z$, lateral sway $a_x$), chassis pitch and roll rates, dynamic 4-corner suspension travel deflect generating active suspension velocity in SimHub, gear shift shock impulses, and curb rumble strip telemetry.
+  - **Fanatec Direct Drive Wheelbase Hardware Safeties**: Embedded an asynchronous watchdog safety heartbeat (200ms auto-zero), dynamic torque slew rate limiter (12,000 units/s jerk clamp), 85% hardware torque saturation ceiling, and anti-oscillation damping floor (`targetDamper >= 1200`) to safeguard Direct Drive hardware and driver wrists.
+  - **Meta Quest Guardian Space Auto-Recenter**: Automated tracking space jump detection ($d > 0.25\text{ m}$) in `VrDriver.ReadPoses()` that instantly re-anchors seated camera orientation and eye-level height whenever the player recenters via the Meta Quest OS menu.
+  - **Unity 6 Driving Action Map Fix**: Rectified DirectInput wheel bypass logic so the vehicle driving map activates reliably, restoring full pedal response and paddle shifting functionality.
+  - **Deterministic IL Patcher & Automated Steam Pipeline**: Deterministic Mono.Cecil patcher (`scripts/patch_safeties.ps1`) with full CLR JIT verifier validation and automatic deployment to Steam game directories.
+
 ## [1.7.10-dev] - 2026-10-28
 ### Added & Enhanced
 - **Full 3D Dynamic Physics Injection for SimHub ShakeIt Bass Shakers**:
