@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.8-dev] - 2026-10-28
+### Maintenance & PR Preparation
+- **Upstream PR 1 Streamlined (feat/fanatec-DD)**:
+  - Removed internal developer documentation (`CHANGELOG.md` and `INSTALL_GUIDE.md`) from the PR branch.
+  - Cleaned callout reference in `README.md` to prevent broken documentation links for upstream users.
+  - Amended commit `de3c8f0` and updated `origin/feat/fanatec-DD`, maintaining a single atomic commit diff based on `upstream/main`.
+
 ## [1.7.7-dev] - 2026-10-28
 ### Documentation & Roadmap
 - **Official Project Feature Queue & Backlog Provisioned (BACKLOG.md)**:
