@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.5-dev] - 2026-10-28
+### Infrastructure & Repository Consolidation
+- **Upstream Lineage & Official Fork Provisioning**:
+  - Forked official repository `segadreamcat/overthehillvr` to `wtan404/overthehillvr` via GitHub API to establish formal upstream fork network ancestry.
+  - Reconfigured local remotes: `origin` now points to `wtan404/overthehillvr.git` and `upstream` points to `segadreamcat/overthehillvr.git`.
+  - Established 2-repository consolidated architecture, preparing retirement of standalone ZIP export repository `wtan404/overthehill-WT`.
+- **PR 1 Branch Assembly (feat/direct-drive-safeties)**:
+  - Branched cleanly from `upstream/main` (`b19cd42`) with zero commit divergence.
+  - Isolated and published PR 1 (`feat/direct-drive-safeties`) containing Fanatec CSL DD / Direct Drive support, hardware watchdog safeties, torque slew rate limiter, Unity 6 input fix, evaluation stack JIT fix, and setup guide.
+  - Successfully quarantined OpenXR backend architecture (`IVrBackend`, P/Invoke layer) on `openxr-support` branch for future independent PR submission.
+
 ## [1.7.4-dev] - 2026-10-28
 ### Added
 - **SimHub ShakeIt Bass Shakers & Tactile Telemetry UDP Broadcaster**:
