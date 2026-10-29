@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.7-dev] - 2026-10-28
+### Documentation & Roadmap
+- **Official Project Feature Queue & Backlog Provisioned (BACKLOG.md)**:
+  - Established formal roadmap tracking 5 prioritized future deliverables:
+    1. OpenXR Dual-Backend Architecture (PR 2).
+    2. Fanatec ClubSport H-Pattern discrete gate transmission solver.
+    3. Multi-device DirectInput & secondary USB button box / rotary encoder poller.
+    4. Dedicated wheel bindings for Handbrake, Headlights, Roof, and Zoom.
+    5. SimHub ShakeIt tactile bass shaker UDP telemetry broadcaster.
+
 ## [1.7.6-dev] - 2026-10-28
 ### Fixed
 - **SimHub ShakeIt Bass Shakers Port & Packet Size Alignment**:
@@ -115,3 +125,4 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **MelonLoader Packaging Hierarchy**: Restructured root directories by relocating `net35/`, `net6/`, and `Documentation/` into standard `MelonLoader/` structure to ensure the native bootstrap `version.dll` resolves runtime assemblies properly.
 - **MelonLoader Runtime Dependencies**: Restored 84 missing runtime dependency assemblies from official MelonLoader v0.7.3 x64 distribution that were lost during upstream web upload truncation.
+
