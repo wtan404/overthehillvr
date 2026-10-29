@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.9-dev] - 2026-10-28
+### Fixed
+- **SimHub ShakeIt Bass Shakers Continuous Telemetry & Transducer Muting Resolution**:
+  - **Eliminated Paused=True Mute Bug**: Removed destructive SendZeroPacket() zeroing calls that set IsRaceOn = 0 whenever vehicle speed was zero or during vehicle state transitions. In Forza UDP telemetry, IsRaceOn == 0 causes SimHub to transition to Paused=True and instantly tear down / mute the FMOD transducer audio interface.
+  - **Non-Destructive Idle Heartbeat Stream**: Implemented a continuous low-frequency heartbeat (10 Hz) when outside the vehicle or idling that maintains IsRaceOn = 1 while keeping physics signals at 0. Transducers smoothly quiet down without triggering SimHub audio interface destruction or pops.
+  - **Stationary Engine Vibration Floor (850 RPM)**: Injected a guaranteed 850 RPM idle floor (Math.Max(850f, rpm)) whenever the vehicle is occupied. Prevents bass shakers from dropping to complete silence when stopped at lights or on hills, providing persistent seat and pedal rumble that dynamically scales up to 7500 RPM under throttle.
+  - **Dynamic Deceleration & Braking G-Force**: Derived longitudinal acceleration (a_z = \Delta v / \Delta t) clamped between $[-25, 25]\text{ m/s}^2$ and wired into AccelerationZ and Brake. Directly feeds SimHub's DecelerationGforceContainer and WheelsLockContainer during heavy braking.
+  - **Procedural Surface Rumble & Road Micro-Texture**: Added speed-scaled procedural surface texture and road impact synthesis to SurfaceRumble (FL/FR/RL/RR) and AccelerationY. Ensures SimHub's RoadTextureContainer, WheelsRumbleContainer, and WheelsVibrationContainer deliver active road feel instead of receiving flat zeros.
+  - **Tactile Gear Shift Impulse**: Implemented a 120ms vertical acceleration shock pulse ($+8\text{ m/s}^2$) on gear change events to deliver a physical thump through the transducers.
+  - **Automated Steam Binary Deployment Pipeline**: Enhanced scripts/patch_safeties.ps1 to automatically deploy patched OverTheHillVR.dll and SimHubTelemetry.dll directly to the Steam game directories (Mods/ and UserLibs/), eliminating manual file copy steps.
+
 ## [1.7.8-dev] - 2026-10-28
 ### Maintenance & PR Preparation
 - **Upstream PR 1 Streamlined (feat/fanatec-DD)**:

@@ -50,9 +50,9 @@ This document maintains the official, prioritized feature queue and technical ro
 ---
 
 ### 5. SimHub ShakeIt Tactile Telemetry UDP Broadcaster
-- **Status**: Implemented on `dev` (commit `4324843`); awaiting standalone PR staging.
-- **Target**: Transducer / Bass Shaker rigs via SimHub.
+- **Status**: Completed & Verified on dev; Automated deployment to Steam operational.
+- **Target**: Transducer / Bass Shaker rigs via SimHub (FM7 / FH Dash UDP protocol).
 - **Scope & Deliverables**:
-  - 60 Hz UDP broadcast targeting `127.0.0.1:5606` using the standard 324-byte Forza Horizon / Motorsport telemetry packet specification.
-  - Real-time engine harmonics (RPM), paddle gear shift tactile thumps, vertical suspension acceleration (road rumble), and collision shock pulses.
-  - Auto-silence safety packet to mute transducers when paused or idling in menus.
+  - 60 Hz UDP broadcast normalized to standard 311-byte Forza Motorsport 7 format with dual-port concurrent dispatch (8000 & 5606).
+  - Active tactile synthesis: engine vibration with 850 RPM idle floor, 120ms gear shift tactile impulses, longitudinal deceleration G-forces, and speed-scaled procedural road micro-texture rumble.
+  - Non-destructive 10 Hz heartbeat maintaining IsRaceOn = 1 during vehicle transitions, completely resolving transducer muting bugs.

@@ -578,3 +578,20 @@ Write-Output "Assembly written to $outPath successfully, size: $( (Get-Item $out
 Copy-Item $outPath $dllPath -Force
 Remove-Item $outPath -Force
 Write-Output "Patched OverTheHillVR.dll replaced successfully!"
+
+# 14. Deploy binaries to Steam installation directory if present
+$steamDir = "D:\Program Files\Steam\steamapps\common\over the hill"
+if (Test-Path $steamDir) {
+    Write-Output "Deploying patched binaries to Steam directory: $steamDir"
+    $steamMods = Join-Path $steamDir "Mods"
+    $steamUserLibs = Join-Path $steamDir "UserLibs"
+    if (Test-Path $steamMods) {
+        Copy-Item $dllPath (Join-Path $steamMods "OverTheHillVR.dll") -Force
+        Copy-Item $telemPath (Join-Path $steamMods "SimHubTelemetry.dll") -Force
+        Write-Output "Deployed OverTheHillVR.dll and SimHubTelemetry.dll to $steamMods"
+    }
+    if (Test-Path $steamUserLibs) {
+        Copy-Item $telemPath (Join-Path $steamUserLibs "SimHubTelemetry.dll") -Force
+        Write-Output "Deployed SimHubTelemetry.dll to $steamUserLibs"
+    }
+}
