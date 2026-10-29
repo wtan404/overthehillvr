@@ -7,19 +7,23 @@ namespace OverTheHillVR.Telemetry
 {
     public static class TelemetryBroadcaster
     {
+        public const int PacketSize = 311;
         public static bool Enabled = true;
         public static string TargetIP = "127.0.0.1";
-        public static int TargetPort = 5606;
+        public static int TargetPort = 8000;
         public static float BroadcastInterval = 1f / 60f; // 60 Hz
 
         private static UdpClient _udp;
-        private static IPEndPoint _endPoint;
+        private static IPEndPoint _primaryEndPoint;
+        private static IPEndPoint _secondaryEndPoint;
         private static float _lastSendTime;
-        private static readonly byte[] _buffer = new byte[324];
+        private static readonly byte[] _buffer = new byte[PacketSize];
         private static ForzaPacket _packet;
         private static bool _initialized;
         private static bool _wasDriving;
+        private static bool _firstPacketLogged;
         private static int _errorCount;
+        private static ulong _packetsSent;
 
         public static void Init(string ip = null, int port = -1)
         {
@@ -32,7 +36,7 @@ namespace OverTheHillVR.Telemetry
 
                 if (!Enabled)
                 {
-                    Console.WriteLine("[SimHubTelemetry] Telemetry disabled in configuration.");
+                    LogMsg("[SimHubTelemetry] Telemetry disabled in configuration.");
                     _initialized = true;
                     return;
                 }
@@ -43,17 +47,34 @@ namespace OverTheHillVR.Telemetry
                     _udp = null;
                 }
 
-                _endPoint = new IPEndPoint(IPAddress.Parse(TargetIP), TargetPort);
+                var targetAddr = IPAddress.Parse(TargetIP);
+                _primaryEndPoint = new IPEndPoint(targetAddr, TargetPort);
+
+                // Setup dual-port fallback (if target is 8000, secondary is 5606; if target is 5606, secondary is 8000)
+                int secondaryPort = (TargetPort == 8000) ? 5606 : 8000;
+                _secondaryEndPoint = new IPEndPoint(targetAddr, secondaryPort);
+
                 _udp = new UdpClient();
-                _udp.Client.SendBufferSize = 1024;
-                _udp.Client.Blocking = false;
+                _udp.Client.SendBufferSize = 4096;
+
+                // Disable WSAECONNRESET on Windows when sending to an unlistened localhost UDP port
+                try
+                {
+                    const int SIO_UDP_CONNRESET = -1744830452;
+                    _udp.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+                }
+                catch {}
+
                 _initialized = true;
                 _errorCount = 0;
-                Console.WriteLine($"[SimHubTelemetry] Initialized UDP broadcaster targeting {TargetIP}:{TargetPort} @ {(1f / BroadcastInterval):0}Hz");
+                _packetsSent = 0;
+                _firstPacketLogged = false;
+
+                LogMsg($"[SimHubTelemetry] Initialized UDP broadcaster targeting {TargetIP}:{TargetPort} (fallback :{secondaryPort}) @ {(1f / BroadcastInterval):0}Hz [{PacketSize} bytes]");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SimHubTelemetry] Initialization error: {ex.Message}");
+                LogMsg($"[SimHubTelemetry] Initialization error: {ex.Message}");
                 _initialized = false;
             }
         }
@@ -193,13 +214,24 @@ namespace OverTheHillVR.Telemetry
                     }
                 }
 
-                _udp.Send(_buffer, 324, _endPoint);
+                _udp.Send(_buffer, PacketSize, _primaryEndPoint);
+                if (_secondaryEndPoint != null)
+                {
+                    try { _udp.Send(_buffer, PacketSize, _secondaryEndPoint); } catch {}
+                }
+
+                _packetsSent++;
+                if (!_firstPacketLogged)
+                {
+                    _firstPacketLogged = true;
+                    LogMsg($"[SimHubTelemetry] Active telemetry transmitting to {TargetIP}:{TargetPort} ({PacketSize}B, RPM={rpm:0}, Spd={speed:0.0}m/s, Gear={fzGear})");
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 if (++_errorCount <= 3)
                 {
-                    Console.WriteLine("[SimHubTelemetry] UDP socket send error (muted after 3 occurrences)");
+                    LogMsg($"[SimHubTelemetry] UDP socket send error: {ex.Message} (muted after 3)");
                 }
             }
         }
@@ -208,9 +240,13 @@ namespace OverTheHillVR.Telemetry
         {
             try
             {
-                if (_udp == null || _endPoint == null) return;
+                if (_udp == null || _primaryEndPoint == null) return;
                 Array.Clear(_buffer, 0, _buffer.Length);
-                _udp.Send(_buffer, 324, _endPoint);
+                _udp.Send(_buffer, PacketSize, _primaryEndPoint);
+                if (_secondaryEndPoint != null)
+                {
+                    try { _udp.Send(_buffer, PacketSize, _secondaryEndPoint); } catch {}
+                }
             }
             catch {}
         }
@@ -227,6 +263,19 @@ namespace OverTheHillVR.Telemetry
                     _udp = null;
                 }
                 _initialized = false;
+                _firstPacketLogged = false;
+                LogMsg($"[SimHubTelemetry] Broadcaster shut down cleanly. Total packets sent: {_packetsSent}");
+            }
+            catch {}
+        }
+
+        private static void LogMsg(string msg)
+        {
+            try
+            {
+                Console.WriteLine(msg);
+                string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "UserData", "SimHubTelemetry.log");
+                File.AppendAllText(logFile, $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] {msg}\n");
             }
             catch {}
         }

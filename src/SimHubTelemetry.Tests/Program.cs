@@ -22,16 +22,17 @@ namespace SimHubTelemetry.Tests
 
             int size = Marshal.SizeOf<ForzaPacket>();
             Console.WriteLine($"ForzaPacket size: {size} bytes");
-            if (size != 324)
+            if (size != 311)
             {
-                Console.WriteLine($"[FAIL] Expected 324 bytes, got {size}");
+                Console.WriteLine($"[FAIL] Expected 311 bytes, got {size}");
                 return 1;
             }
 
-            using var listener = new UdpClient(5606);
+            const int testPort = 8055;
+            using var listener = new UdpClient(testPort);
             listener.Client.ReceiveTimeout = 2000;
 
-            TelemetryBroadcaster.Init("127.0.0.1", 5606);
+            TelemetryBroadcaster.Init("127.0.0.1", testPort);
 
             TelemetryBroadcaster.TickSimple(
                 isDriving: true,
@@ -48,7 +49,7 @@ namespace SimHubTelemetry.Tests
             byte[] received = listener.Receive(ref sender);
 
             Console.WriteLine($"Received packet: {received.Length} bytes");
-            if (received.Length != 324) return 1;
+            if (received.Length != 311) return 1;
 
             ForzaPacket packet;
             unsafe

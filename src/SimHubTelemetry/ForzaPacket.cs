@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace OverTheHillVR.Telemetry
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 324)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1, Size = 311)]
     public struct ForzaPacket
     {
         public int IsRaceOn;
@@ -92,10 +92,5 @@ namespace OverTheHillVR.Telemetry
         public sbyte Steer;
         public sbyte NormalizedDrivingLine;
         public sbyte NormalizedAIBrakeDifference;
-        // Remaining 13 bytes padding out to 324 bytes (Forza Horizon 5 extended)
-        public float TireWearFrontLeft;
-        public float TireWearFrontRight;
-        public float TireWearRearLeft;
-        public byte ReservedPad;
     }
 }

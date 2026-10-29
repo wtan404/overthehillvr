@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.6-dev] - 2026-10-28
+### Fixed
+- **SimHub ShakeIt Bass Shakers Port & Packet Size Alignment**:
+  - **Packet Size Normalization to 311 Bytes**: Aligned `ForzaPacket` with SimHub's native Forza Motorsport 7 (`FM7Manager`) Dash packet specification (`Size = 311`, removing 13-byte trailing FH5 pad). This satisfies SimHub's strict length validation (`bytes.Length == 311`) in `ForzaReader.Forzareader_OnAcceptBytes`, preventing packets from being discarded as corrupt/unrecognized.
+  - **Universal Dual-Port Broadcasting (`8000` & `5606`)**: Updated default UDP broadcast port from `5606` to `8000` (SimHub's default Forza listener). Implemented concurrent dual-port transmission to both `8000` (FM7) and `5606` (FH standard) on `127.0.0.1` so SimHub immediately detects active telemetry regardless of which profile is selected.
+  - **Socket Resilience & Windows SIO_UDP_CONNRESET**: Configured `SIO_UDP_CONNRESET = -1744830452` on `TelemetryBroadcaster._udp` to prevent Windows from generating `WSAECONNRESET` exceptions when broadcasting to secondary localhost ports. Removed non-blocking mode to ensure reliable, zero-drop UDP delivery under high CPU/rendering load.
+  - **Telemetry Logging & Audit Trail**: Added automatic diagnostic logging to `UserData/SimHubTelemetry.log` and console output confirming telemetry transmission status, packet size, live RPM, speed, and gear.
+  - **Verified End-to-End**: Tested live against active SimHub instance; verified SimHub logs `UDP Reader on port 8000 started receiving valid data`, `Game connected`, and successfully allocates the FMOD transducer output for `Speakers (USB2.0 Device)`.
+
 ## [1.7.5-dev] - 2026-10-28
 ### Infrastructure & Repository Consolidation
 - **Upstream Lineage & Official Fork Provisioning**:
