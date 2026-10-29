@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.10-dev] - 2026-10-28
+### Added & Enhanced
+- **Full 3D Dynamic Physics Injection for SimHub ShakeIt Bass Shakers**:
+  - **Real-Time 3D Vehicle Local Acceleration**: Replaced hardcoded vertical and longitudinal acceleration with real frame-delta acceleration computed from `Rigidbody.velocity` and projected into local vehicle space via `Transform.InverseTransformDirection(worldAccel)`:
+    - **Local Y (Heave)**: True road bumps, dips, compressions, and crests.
+    - **Local Z (Surge)**: Authoritative braking deceleration and throttle squat.
+    - **Local X (Sway)**: Lateral weight transfer and cornering g-forces.
+  - **Chassis Angular Dynamics (Pitch & Roll)**: Resolved `Rigidbody.angularVelocity` into vehicle local frame:
+    - **Pitch Rate**: Transmits forward/rear chassis pitch when transitioning over rises and dips.
+    - **Roll Rate**: Drives left/right chassis lean and asymmetric curb vibrations.
+  - **Dynamic 4-Wheel Suspension Travel & Velocity**: Synthesized dynamic suspension travel deflection across all four corners (`FL`, `FR`, `RL`, `RR`) from instantaneous heave, pitch rate, and roll rate. SimHub calculates `SuspensionVelocity = (Travel - PrevTravel) / dt`, which now produces active, non-zero velocities and completely un-mutes SimHub's **Wheels Impact**, **Wheels Vibration**, and **Road Texture** bass shaker effects.
+  - **Authoritative Gear Shift Surge Pulse**: Injected instantaneous $\pm 14\text{ m/s}^2$ longitudinal surge shock pulse on paddle gear shifts for a physical kick through the transducers.
+  - **Hard Impact & Rumble Strip Telemetry**: Automatically raises `WheelOnRumbleStrip` flags and high-frequency surface rumble during heavy vertical g-force events ($|a_y| > 14\text{ m/s}^2$) or collision impulses (`ffbHit > 0.12f`).
+  - **Deterministic IL Injection (`patch_safeties.ps1`)**: Added `prevTelemVel`, `prevTelemTime`, and `prevTelemValid` fields to `VrDriver` and injected full physics calculation directly into `VrDriver.TelemetryTick` calling `TelemetryBroadcaster.TickPhysics`.
+  - **CLR JIT Validation**: Verified patched assembly via `SimHubTelemetry.Tests -- jit`, confirming all 8 patched methods (`TelemetryTick`, `WatchdogCheck`, `SafeFfb`, `SafeDamper`, `CheckGuardianRecenter`, `FfbTick`, `Update`, `Quit`) compile and verify cleanly.
+  - **Steam Deployment**: Rebuilt and copied patched `OverTheHillVR.dll` and `SimHubTelemetry.dll` directly to active Steam directories (`Mods/` and `UserLibs/`).
+
 ## [1.7.9-dev] - 2026-10-28
 ### Fixed
 - **SimHub ShakeIt Bass Shakers Continuous Telemetry & Transducer Muting Resolution**:

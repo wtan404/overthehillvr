@@ -33,7 +33,16 @@ $driverType.Fields.Add($f_prevYaw)
 
 $f_prevValid = New-Object Mono.Cecil.FieldDefinition("prevRawValid", [Mono.Cecil.FieldAttributes]::Private, $mod.TypeSystem.Boolean)
 $driverType.Fields.Add($f_prevValid)
-Write-Output "Added fields: isDirectDrive, ffbLastTick, prevRawPos, prevRawYaw, prevRawValid"
+
+$f_prevTelemVel = New-Object Mono.Cecil.FieldDefinition("prevTelemVel", [Mono.Cecil.FieldAttributes]::Private, $vec3Type)
+$driverType.Fields.Add($f_prevTelemVel)
+
+$f_prevTelemTime = New-Object Mono.Cecil.FieldDefinition("prevTelemTime", [Mono.Cecil.FieldAttributes]::Private, $mod.TypeSystem.Single)
+$driverType.Fields.Add($f_prevTelemTime)
+
+$f_prevTelemValid = New-Object Mono.Cecil.FieldDefinition("prevTelemValid", [Mono.Cecil.FieldAttributes]::Private, $mod.TypeSystem.Boolean)
+$driverType.Fields.Add($f_prevTelemValid)
+Write-Output "Added fields: isDirectDrive, ffbLastTick, prevRawPos, prevRawYaw, prevRawValid, prevTelemVel, prevTelemTime, prevTelemValid"
 
 # 2. Add SafeFfb static method
 $attrs = [Mono.Cecil.MethodAttributes]([int][Mono.Cecil.MethodAttributes]::Public -bor [int][Mono.Cecil.MethodAttributes]::Static)
@@ -215,6 +224,15 @@ foreach ($i in $m_ffbTick.Body.Instructions) {
     }
 }
 
+$m_inv = ($m_ffbTick.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq "InverseTransformDirection" })[0].Operand
+$m_vel = ($m_ffbTick.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq "get_velocity" })[0].Operand
+$m_angVel = ($m_ffbTick.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq "get_angularVelocity" })[0].Operand
+$m_sub = ($m_ffbTick.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq "op_Subtraction" })[0].Operand
+$m_div = ($m_ffbTick.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq "op_Division" })[0].Operand
+$f_z = ($m_ffbTick.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.FieldReference] -and $_.Operand.Name -eq "z" })[0].Operand
+$f_x = New-Object Mono.Cecil.FieldReference("x", $mod.TypeSystem.Single, $f_z.DeclaringType)
+$f_y = New-Object Mono.Cecil.FieldReference("y", $mod.TypeSystem.Single, $f_z.DeclaringType)
+
 foreach ($m in $driverType.Methods) {
     if ($m.Body -eq $null) { continue }
     foreach ($i in $m.Body.Instructions) {
@@ -348,7 +366,7 @@ Write-Output "Added method: CheckGuardianRecenter"
 # 7. Import SimHubTelemetry and Add TelemetryTick method
 $telemAsm = [Mono.Cecil.AssemblyDefinition]::ReadAssembly($telemPath)
 $telemType = $telemAsm.MainModule.GetType("OverTheHillVR.Telemetry.TelemetryBroadcaster")
-$m_telemTick_src = $telemType.Methods | Where-Object { $_.Name -eq "TickSimple" }
+$m_telemTick_src = $telemType.Methods | Where-Object { $_.Name -eq "TickPhysics" }
 $m_telemTick = $mod.ImportReference($m_telemTick_src)
 $m_telemShutdown_src = $telemType.Methods | Where-Object { $_.Name -eq "Shutdown" }
 $m_telemShutdown = $mod.ImportReference($m_telemShutdown_src)
@@ -375,16 +393,26 @@ $f_ffbHit = $driverType.Fields | Where-Object { $_.Name -eq "ffbHit" }
 $m_telemetry = New-Object Mono.Cecil.MethodDefinition("TelemetryTick", $attrsW, $mod.TypeSystem.Void)
 $m_telemetry.Body.InitLocals = $true
 $m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Boolean))) # 0: isDriving
-$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 1: rpm
-$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 2: speed
-$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Int32)))   # 3: gear
-$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 4: accelY
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 1: timeNow
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 2: rpm
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 3: speed
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Int32)))   # 4: gear
 $m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 5: steer
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 6: accelX
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 7: accelY
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 8: accelZ
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 9: pitchRate
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 10: rollRate
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($vec3Type)))               # 11: curVel
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($mod.TypeSystem.Single)))  # 12: dt
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($vec3Type)))               # 13: worldAccel
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($vec3Type)))               # 14: localAccel
+$m_telemetry.Body.Variables.Add((New-Object Mono.Cecil.Cil.VariableDefinition($vec3Type)))               # 15: localAng
 
 $ilT = $m_telemetry.Body.GetILProcessor()
-$lbl_notDriving = $ilT.Create([Mono.Cecil.Cil.OpCodes]::Ldc_I4_0)
-$lbl_driving = $ilT.Create([Mono.Cecil.Cil.OpCodes]::Ldc_I4_1)
-$lbl_sendTelem = $ilT.Create([Mono.Cecil.Cil.OpCodes]::Ldloc_0)
+$lbl_notDriving = $ilT.Create([Mono.Cecil.Cil.OpCodes]::Nop)
+$lbl_skipAccel = $ilT.Create([Mono.Cecil.Cil.OpCodes]::Nop)
+$lbl_sendTelem = $ilT.Create([Mono.Cecil.Cil.OpCodes]::Nop)
 
 # Check this.body != null
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
@@ -412,69 +440,215 @@ $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $refTimeScale)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.01)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ble_Un, $lbl_notDriving)
 
-# Driving = true
-$ilT.Append($lbl_driving)
+# --- Driving ---
+# isDriving = true (loc 0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_I4_1)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_0)
 
-# rpm = (float)this.carStatus.EngineRpm
+# timeNow = Time.unscaledTime (loc 1)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $refTime)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_1)
+
+# rpm = (float)this.carStatus.EngineRpm (loc 2)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_carStatus)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_getRpmRef)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Conv_R4)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_1)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_2)
 
-# speed = this.carStatus.VehicleSpeed
+# speed = this.carStatus.VehicleSpeed (loc 3)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_carStatus)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_getSpeed)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_2)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_3)
 
-# gear = (int)this.carStatus.GearboxGear
+# gear = (int)this.carStatus.GearboxGear (loc 4)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_carStatus)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_getGear)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Conv_I4)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_3)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]4)
 
-# steer = this.CarSteer()
+# steer = this.CarSteer() (loc 5)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $m_carSteer)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]5)
 
-# accelY = 0f
+# Initialize accelX = 0, accelY = 0, accelZ = 0 (loc 6, 7, 8)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]4)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]6)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]7)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]8)
+
+# curVel = this.bodyRb.velocity (loc 11)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_bodyRb)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_vel)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]11)
+
+# dt = timeNow - this.prevTelemTime (loc 12)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_1)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_prevTelemTime)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Sub)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]12)
+
+# Check this.prevTelemValid
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_prevTelemValid)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Brfalse, $lbl_skipAccel)
+
+# Check dt <= 0.001f
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]12)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.001)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ble_Un, $lbl_skipAccel)
+
+# Check dt >= 0.25f
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]12)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.25)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Bge_Un, $lbl_skipAccel)
+
+# worldAccel = (curVel - this.prevTelemVel) / dt (loc 13)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]11)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_prevTelemVel)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $m_sub)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]12)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $m_div)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]13)
+
+# localAccel = this.body.InverseTransformDirection(worldAccel) (loc 14)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_body)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]13)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_inv)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]14)
+
+# accelX = localAccel.x (loc 6)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]14)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_x)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]6)
+
+# accelY = localAccel.y (loc 7)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]14)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_y)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]7)
+
+# accelZ = localAccel.z (loc 8)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]14)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_z)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]8)
+
+# lbl_skipAccel
+$ilT.Append($lbl_skipAccel)
+# this.prevTelemVel = curVel
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]11)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stfld, $f_prevTelemVel)
+
+# this.prevTelemTime = timeNow
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_1)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stfld, $f_prevTelemTime)
+
+# this.prevTelemValid = true
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_I4_1)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stfld, $f_prevTelemValid)
+
+# localAng = this.body.InverseTransformDirection(this.bodyRb.angularVelocity) (loc 15)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_body)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_bodyRb)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_angVel)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Callvirt, $m_inv)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]15)
+
+# pitchRate = localAng.x (loc 9)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]15)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_x)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]9)
+
+# rollRate = localAng.z (loc 10)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]15)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_z)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]10)
 
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Br, $lbl_sendTelem)
 
-# Not Driving
+# --- Not Driving ---
 $ilT.Append($lbl_notDriving)
+# isDriving = false (loc 0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_I4_0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_0)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+
+# this.prevTelemValid = false
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_I4_0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stfld, $f_prevTelemValid)
+
+# timeNow = Time.unscaledTime (loc 1)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $refTime)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_1)
+
+# rpm = 0 (loc 2)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_2)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_I4_0)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_3)
+
+# speed = 0 (loc 3)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_3)
+
+# gear = 0 (loc 4)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_I4_0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]4)
+
+# steer = 0 (loc 5)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]5)
 
-# Send to TelemetryBroadcaster.TickSimple
+# accelX = 0 (loc 6)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]6)
+
+# accelY = 0 (loc 7)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]7)
+
+# accelZ = 0 (loc 8)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]8)
+
+# pitchRate = 0 (loc 9)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]9)
+
+# rollRate = 0 (loc 10)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldc_R4, [float]0.0)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Stloc_s, [byte]10)
+
+# --- Send Telemetry ---
 $ilT.Append($lbl_sendTelem)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $refTime)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_1)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_2)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_3)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]4)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_0)          # isDriving
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_1)          # timeNow
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_2)          # rpm
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_3)          # speed
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]4) # gear
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]5) # steer
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldarg_0)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_ffbHit)
-$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]5)
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_ffbHit) # ffbHit
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]6) # accelX
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]7) # accelY
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]8) # accelZ
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]9) # pitchRate
+$ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ldloc_s, [byte]10) # rollRate
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Call, $m_telemTick)
 $ilT.Emit([Mono.Cecil.Cil.OpCodes]::Ret)
 
-$m_telemetry.Body.MaxStackSize = 16
+$m_telemetry.Body.MaxStackSize = 32
 $driverType.Methods.Add($m_telemetry)
 Write-Output "Added method: TelemetryTick"
 

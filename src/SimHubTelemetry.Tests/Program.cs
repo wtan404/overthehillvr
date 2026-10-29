@@ -34,15 +34,19 @@ namespace SimHubTelemetry.Tests
 
             TelemetryBroadcaster.Init("127.0.0.1", testPort);
 
-            TelemetryBroadcaster.TickSimple(
+            TelemetryBroadcaster.TickPhysics(
                 isDriving: true,
                 timeNow: 5.67f,
                 rpm: 5200f,
                 speed: 31.4f,
                 gear: 4,
-                accelY: 4.5f,
+                steer: 0.5f,
                 ffbHit: 0.2f,
-                steer: 0.5f
+                accelX: 1.5f,
+                accelY: 4.5f,
+                accelZ: -2.0f,
+                pitchRate: 0.12f,
+                rollRate: -0.08f
             );
 
             IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
@@ -71,9 +75,12 @@ namespace SimHubTelemetry.Tests
                 Math.Abs(packet.CurrentEngineRpm - 5200f) < 0.1f &&
                 Math.Abs(packet.Speed - 31.4f) < 0.1f &&
                 packet.Gear == 4 &&
-                packet.AccelerationY > 4.5f)
+                packet.AccelerationY > 4.5f &&
+                Math.Abs(packet.AccelerationX - 1.5f) < 0.01f &&
+                Math.Abs(packet.AngularVelocityX - 0.12f) < 0.01f &&
+                packet.NormalizedSuspensionTravelFrontLeft > 0f)
             {
-                Console.WriteLine("[SUCCESS] Telemetry packet verified cleanly!");
+                Console.WriteLine("[SUCCESS] Dynamic physics telemetry packet verified cleanly!");
                 TelemetryBroadcaster.Shutdown();
                 return 0;
             }
