@@ -3,6 +3,13 @@ Add-Type -Path "D:\Projects\overthehillvr-fan\MelonLoader\net6\Mono.Cecil.Rocks.
 
 $dllPath = "D:\Projects\overthehillvr-fan\Mods\OverTheHillVR.dll"
 $telemPath = "D:\Projects\overthehillvr-fan\Mods\SimHubTelemetry.dll"
+$telemUserLibs = "D:\Projects\overthehillvr-fan\UserLibs\SimHubTelemetry.dll"
+
+# Build latest SimHubTelemetry with ButtonBoxBridge
+Write-Output "Building latest SimHubTelemetry (including ButtonBoxBridge)..."
+& dotnet build "D:\Projects\overthehillvr-fan\src\SimHubTelemetry\SimHubTelemetry.csproj" -c Release
+Copy-Item "D:\Projects\overthehillvr-fan\src\SimHubTelemetry\bin\Release\net6.0\SimHubTelemetry.dll" $telemPath -Force
+Copy-Item "D:\Projects\overthehillvr-fan\src\SimHubTelemetry\bin\Release\net6.0\SimHubTelemetry.dll" $telemUserLibs -Force
 
 # Always restore clean base from git commit b76920b to ensure pristine IL
 Write-Output "Restoring clean base OverTheHillVR.dll from commit b76920b..."
@@ -42,7 +49,12 @@ $driverType.Fields.Add($f_prevTelemTime)
 
 $f_prevTelemValid = New-Object Mono.Cecil.FieldDefinition("prevTelemValid", [Mono.Cecil.FieldAttributes]::Private, $mod.TypeSystem.Boolean)
 $driverType.Fields.Add($f_prevTelemValid)
-Write-Output "Added fields: isDirectDrive, ffbLastTick, prevRawPos, prevRawYaw, prevRawValid, prevTelemVel, prevTelemTime, prevTelemValid"
+$f_wheelButtons = New-Object Mono.Cecil.FieldDefinition("wheelButtons", [Mono.Cecil.FieldAttributes]::Private, $mod.TypeSystem.UInt64)
+$driverType.Fields.Add($f_wheelButtons)
+
+$f_secondaryButtons = New-Object Mono.Cecil.FieldDefinition("secondaryButtons", [Mono.Cecil.FieldAttributes]::Private, $mod.TypeSystem.UInt64)
+$driverType.Fields.Add($f_secondaryButtons)
+Write-Output "Added fields: isDirectDrive, ffbLastTick, prevRawPos, prevRawYaw, prevRawValid, prevTelemVel, prevTelemTime, prevTelemValid, wheelButtons, secondaryButtons"
 
 # 2. Add SafeFfb static method
 $attrs = [Mono.Cecil.MethodAttributes]([int][Mono.Cecil.MethodAttributes]::Public -bor [int][Mono.Cecil.MethodAttributes]::Static)
@@ -371,6 +383,10 @@ $m_telemTick = $mod.ImportReference($m_telemTick_src)
 $m_telemShutdown_src = $telemType.Methods | Where-Object { $_.Name -eq "Shutdown" }
 $m_telemShutdown = $mod.ImportReference($m_telemShutdown_src)
 
+$bbType = $telemAsm.MainModule.GetType("OverTheHillVR.Hardware.ButtonBoxBridge")
+$m_bbProcessPad = $mod.ImportReference(($bbType.Methods | Where-Object { $_.Name -eq "ProcessPad" }))
+$m_bbFrameTick = $mod.ImportReference(($bbType.Methods | Where-Object { $_.Name -eq "FrameTick" }))
+
 $m_updateGauges = $driverType.Methods | Where-Object { $_.Name -eq "UpdateGauges" }
 $m_getRpmRef = ($m_updateGauges.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq "get_EngineRpm" }).Operand
 $statusTypeRef = $m_getRpmRef.DeclaringType
@@ -678,7 +694,15 @@ $ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
 $ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Call, $m_watchdog)))
 $ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
 $ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Call, $m_telemetry)))
-Write-Output "Patched Update(): Injected WatchdogCheck() and TelemetryTick()"
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Call, $refTime)))
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_wheelButtons)))
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_secondaryButtons)))
+$ilU.InsertBefore($firstInstU, ($ilU.Create([Mono.Cecil.Cil.OpCodes]::Call, $m_bbFrameTick)))
+$m_update.Body.MaxStackSize = 32
+Write-Output "Patched Update(): Injected WatchdogCheck(), TelemetryTick(), and ButtonBoxBridge.FrameTick()"
 
 # 11. Patch FfbTick():
 $ilTick = $m_ffbTick.Body.GetILProcessor()
@@ -742,7 +766,38 @@ for ($i = $m_wheelConnect.Body.Instructions.Count - 1; $i -ge 0; $i--) {
     }
 }
 
-# 13. Save modified assembly
+# 13. Patch WheelTick(): Save buttonsA to wheelButtons
+$m_wheelTick = $driverType.Methods | Where-Object { $_.Name -eq "WheelTick" }
+for ($i = 0; $i -lt $m_wheelTick.Body.Instructions.Count; $i++) {
+    $inst = $m_wheelTick.Body.Instructions[$i]
+    if ($inst.OpCode.Name -eq "ldfld" -and $inst.Operand -is [Mono.Cecil.FieldReference] -and $inst.Operand.Name -eq "buttonsA") {
+        $nextInst = $m_wheelTick.Body.Instructions[$i + 1]
+        $ilWT = $m_wheelTick.Body.GetILProcessor()
+        $ilWT.InsertBefore($nextInst, ($ilWT.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
+        $ilWT.InsertBefore($nextInst, ($ilWT.Create([Mono.Cecil.Cil.OpCodes]::Ldloc_1)))
+        $ilWT.InsertBefore($nextInst, ($ilWT.Create([Mono.Cecil.Cil.OpCodes]::Ldfld, $inst.Operand)))
+        $ilWT.InsertBefore($nextInst, ($ilWT.Create([Mono.Cecil.Cil.OpCodes]::Stfld, $f_wheelButtons)))
+        Write-Output "Patched WheelTick(): Stored buttonsA to wheelButtons at index $i"
+        break
+    }
+}
+$m_wheelTick.Body.MaxStackSize = 32
+
+# 14. Patch SendPad(): Filter gamepad bits through ButtonBoxBridge.ProcessPad()
+$m_sendPad = $driverType.Methods | Where-Object { $_.Name -eq "SendPad" }
+$ilSP = $m_sendPad.Body.GetILProcessor()
+$firstInstSP = $m_sendPad.Body.Instructions[0]
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_1)))
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_wheelButtons)))
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Ldarg_0)))
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Ldfld, $f_secondaryButtons)))
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Call, $m_bbProcessPad)))
+$ilSP.InsertBefore($firstInstSP, ($ilSP.Create([Mono.Cecil.Cil.OpCodes]::Starg_S, $m_sendPad.Parameters[0])))
+$m_sendPad.Body.MaxStackSize = 32
+Write-Output "Patched SendPad(): Filtered pad bits through ButtonBoxBridge.ProcessPad()"
+
+# 15. Save modified assembly
 $outPath = "D:\Projects\overthehillvr-fan\Mods\OverTheHillVR.dll.patched"
 $asm.Write($outPath)
 $asm.Dispose()

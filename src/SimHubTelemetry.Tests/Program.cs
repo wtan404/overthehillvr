@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OverTheHillVR.Telemetry;
+using OverTheHillVR.Hardware;
 
 namespace SimHubTelemetry.Tests
 {
@@ -82,6 +83,29 @@ namespace SimHubTelemetry.Tests
             {
                 Console.WriteLine("[SUCCESS] Dynamic physics telemetry packet verified cleanly!");
                 TelemetryBroadcaster.Shutdown();
+
+                Console.WriteLine("--- Testing ButtonBoxBridge Input and Action Mapping ---");
+                string f13 = ButtonBoxBridge.GetKeyName(0x7C);
+                string num0 = ButtonBoxBridge.GetKeyName(0x60);
+                string volUp = ButtonBoxBridge.GetKeyName(0xAF);
+                if (f13 != "F13" || num0 != "NumPad0" || volUp != "VolumeUp")
+                {
+                    Console.WriteLine($"[FAIL] KeyName mismatch: F13='{f13}', NumPad0='{num0}', VolumeUp='{volUp}'");
+                    return 3;
+                }
+                Console.WriteLine($"[OK] Key name resolution: 0x7C -> '{f13}', 0x60 -> '{num0}', 0xAF -> '{volUp}'");
+
+                ButtonBoxBridge.WheelBtnHandbrake = 5;
+                ButtonBoxBridge.WheelBtnHeadlights = 6;
+                ulong testWheelButtons = (1UL << 4) | (1UL << 5);
+                uint mappedPad = ButtonBoxBridge.ProcessPad(0u, testWheelButtons, 0UL);
+                if ((mappedPad & 8u) == 0 || (mappedPad & 4u) == 0)
+                {
+                    Console.WriteLine($"[FAIL] Pad bits mismatch: expected 0x0C (Handbrake 8 + Headlights 4), got {mappedPad}");
+                    return 4;
+                }
+                Console.WriteLine($"[OK] Pad bit mapping: wheel buttons 5 and 6 correctly asserted Handbrake (8) and Headlights (4) -> pad=0x{mappedPad:X2}");
+                Console.WriteLine("[ALL BUTTONBOX BRIDGE TESTS PASSED]");
                 return 0;
             }
 
@@ -118,7 +142,7 @@ namespace SimHubTelemetry.Tests
                     return 10;
                 }
 
-                string[] targets = { "TelemetryTick", "WatchdogCheck", "SafeFfb", "SafeDamper", "CheckGuardianRecenter", "FfbTick", "Update", "Quit" };
+                string[] targets = { "TelemetryTick", "WatchdogCheck", "SafeFfb", "SafeDamper", "CheckGuardianRecenter", "FfbTick", "Update", "Quit", "SendPad", "WheelTick" };
                 int failCount = 0;
                 foreach (var target in targets)
                 {

@@ -37,12 +37,6 @@ internal static class Keys
 
 	public const int Delete = 46;
 
-	private static readonly int[] watched = new int[16]
-	{
-		114, 115, 116, 123, 122, 121, 120, 117, 118, 119,
-		33, 34, 36, 35, 45, 46
-	};
-
 	private static readonly bool[] now = new bool[256];
 
 	private static readonly bool[] prev = new bool[256];
@@ -69,17 +63,23 @@ internal static class Keys
 		catch
 		{
 		}
-		int[] array = watched;
-		foreach (int num in array)
+
+		for (int num = 1; num < 256; num++)
 		{
 			prev[num] = now[num];
 			now[num] = flag && (GetAsyncKeyState(num) & 0x8000) != 0;
+
+			if (now[num] && !prev[num] && Mod.ButtonBoxDebugLog != null && Mod.ButtonBoxDebugLog.Value)
+			{
+				string name = Hardware.ButtonBoxBridge.GetKeyName(num);
+				Mod.L.Msg($"ButtonBox Key Down: VK {num} (0x{num:X2}) -> '{name}'");
+			}
 		}
 	}
 
 	public static bool Down(int k)
 	{
-		if (now[k])
+		if (k > 0 && k < 256 && now[k])
 		{
 			return !prev[k];
 		}
@@ -88,6 +88,10 @@ internal static class Keys
 
 	public static bool Held(int k)
 	{
-		return now[k];
+		if (k > 0 && k < 256)
+		{
+			return now[k];
+		}
+		return false;
 	}
 }

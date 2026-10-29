@@ -578,6 +578,10 @@ internal class VrDriver
 
 	private float sentRT = -1f;
 
+	private ulong wheelButtons;
+
+	private ulong secondaryButtons;
+
 	private float wheelNextAxisLog;
 
 	private readonly int[] lastAx = new int[3];
@@ -2580,6 +2584,7 @@ internal class VrDriver
 	{
 		WatchdogCheck();
 		TelemetryTick();
+		OverTheHillVR.Hardware.ButtonBoxBridge.FrameTick(this, Time.unscaledTime, wheelButtons, secondaryButtons);
 		try
 		{
 			Keys.Poll();
@@ -4831,6 +4836,7 @@ internal class VrDriver
 		ulong buttonsA = deviceState.buttonsA;
 		uint num = ReadPov(deviceState.rgdwPOV);
 		WheelPad.Feed(buttonsA, num);
+		wheelButtons = buttonsA;
 		if (Mod.WheelButtonLog.Value)
 		{
 			ulong pressed = WheelPad.Pressed;
@@ -4899,6 +4905,7 @@ internal class VrDriver
 		{
 			num5 = 0f;
 		}
+		b = OverTheHillVR.Hardware.ButtonBoxBridge.ProcessPad(b, wheelButtons, secondaryButtons);
 		SendPad(b, new Vector2(num5, 0f), flag ? num3 : 0f, flag ? num4 : 0f);
 		void Map(int wheelBtn1, int padBit)
 		{

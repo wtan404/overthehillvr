@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1-dev] - 2026-10-29
+### Added & Enhanced
+- **Secondary USB Button Box, QMK/VIA Macro Keypad & Rotary Encoder Poller**:
+  - **Identified Hardware Root Cause**: Diagnosed nullbits device (`VID 6E61` / `PID 6062`, e.g., TIDBIT / Bit-C macro pad) operating as a composite USB HID Keyboard + Mouse rather than DirectInput game controller, causing standard DirectInput enumeration in `VrDriver` to bypass it.
+  - **Universal 256 Virtual Key Poller (`ButtonBoxBridge`)**: Implemented high-performance background key state poller (`GetAsyncKeyState`) capturing all 256 virtual keys including extended macro keys (`F13`–`F24`, Numpad, and media controls) and rotary encoder pulses.
+  - **Real-Time Button Box Diagnostic Logger**: Enabled automatic logging (`ButtonBoxDebugLog` to console and `UserData/ButtonBox.log`) resolving keycodes and friendly names (e.g., `0x7C` -> `F13`, `0x60` -> `NumPad0`, `0xAF` -> `VolumeUp`) immediately upon key down to facilitate instantaneous button mapping.
+  - **Multi-Device Support**: Provisioned secondary controller button mapping (`BbBtn...`) alongside primary wheel buttons (`wheelButtons`) and keyboard macro keys (`BbKey...`).
+- **Expanded In-Game Wheel & Cockpit Action Bindings**:
+  - **Dedicated Handbrake Binding**: Mapped `WheelBtnHandbrake` and `BbKeyHandbrake` to trigger virtual gamepad D-Pad Right (bit 3 / mask `0x08`), allowing dedicated handbrake paddles/buttons without requiring D-Pad navigation.
+  - **Dedicated Headlights Binding**: Mapped `WheelBtnHeadlights` and `BbKeyHeadlights` to trigger virtual gamepad D-Pad Left (bit 2 / mask `0x04`).
+  - **Cockpit Roof & Trim Style Controls**: Added dedicated triggers for `WheelBtnRoof` / `BbKeyRoof` (calling `ToggleRoof()`) and `WheelBtnInteriorStyle` / `BbKeyInteriorStyle` (calling `NextInteriorStyle()`).
+  - **Camera Orbit Zoom In / Out**: Mapped `WheelBtnZoomIn` / `BbKeyZoomIn` to D-Pad Up (bit 0 / mask `0x01`) and `WheelBtnZoomOut` / `BbKeyZoomOut` to D-Pad Down (bit 1 / mask `0x02`).
+  - **Horizontal & Vertical Seated Eye-Line Adjustment**: Implemented smooth fine-tuning for `WheelBtnSeatForward` / `WheelBtnSeatBack` and `BbKeySeatForward` / `BbKeySeatBack` directly updating `Mod.SeatForward` in meters. Added secondary keypad bindings for `BbKeySeatUp` / `BbKeySeatDown`, `BbKeyRecenter`, and `BbKeyHud`.
+- **Deterministic IL Patcher & Verification Pipeline**:
+  - Updated `scripts/patch_safeties.ps1` to inject `wheelButtons` and `secondaryButtons` fields, filter pad state via `ButtonBoxBridge.ProcessPad()`, and dispatch frame ticks from `VrDriver.Update()`.
+  - Added full test suite in `SimHubTelemetry.Tests` verifying key resolution, pad bit synthesis, and 100% clean CLR JIT compilation across all 10 target methods.
+  - Automatically compiled and deployed patched binaries directly to Steam game directories (`Mods/` and `UserLibs/`).
+
 ## [1.8.0] - 2026-10-28
 ### Production Release
 - **Milestone Production Release v1.8.0 (Fanatec DD, Quest Recenter & SimHub ShakeIt)**:

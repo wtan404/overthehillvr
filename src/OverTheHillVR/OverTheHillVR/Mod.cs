@@ -163,6 +163,30 @@ public class Mod : MelonMod
 
 	internal static MelonPreferences_Entry<int> WbL3;
 
+	internal static MelonPreferences_Entry<int> WbHandbrake;
+	internal static MelonPreferences_Entry<int> WbHeadlights;
+	internal static MelonPreferences_Entry<int> WbRoof;
+	internal static MelonPreferences_Entry<int> WbInteriorStyle;
+	internal static MelonPreferences_Entry<int> WbZoomIn;
+	internal static MelonPreferences_Entry<int> WbZoomOut;
+	internal static MelonPreferences_Entry<int> WbSeatForward;
+	internal static MelonPreferences_Entry<int> WbSeatBack;
+
+	internal static MelonPreferences_Entry<bool> ButtonBoxEnabled;
+	internal static MelonPreferences_Entry<bool> ButtonBoxDebugLog;
+	internal static MelonPreferences_Entry<int> BbKeyHandbrake;
+	internal static MelonPreferences_Entry<int> BbKeyHeadlights;
+	internal static MelonPreferences_Entry<int> BbKeyRoof;
+	internal static MelonPreferences_Entry<int> BbKeyInteriorStyle;
+	internal static MelonPreferences_Entry<int> BbKeyZoomIn;
+	internal static MelonPreferences_Entry<int> BbKeyZoomOut;
+	internal static MelonPreferences_Entry<int> BbKeySeatForward;
+	internal static MelonPreferences_Entry<int> BbKeySeatBack;
+	internal static MelonPreferences_Entry<int> BbKeySeatUp;
+	internal static MelonPreferences_Entry<int> BbKeySeatDown;
+	internal static MelonPreferences_Entry<int> BbKeyRecenter;
+	internal static MelonPreferences_Entry<int> BbKeyHud;
+
 	internal static MelonPreferences_Entry<float> VrShadowDistance;
 
 	internal static MelonPreferences_Entry<float> WheelLock;
@@ -317,6 +341,30 @@ public class Mod : MelonMod
 		WbStart = melonPreferences_Category.CreateEntry("WheelBtnMenu", 10, null, "Wheel button for gamepad Menu/Start. G29: options = 10.");
 		WbR3 = melonPreferences_Category.CreateEntry("WheelBtnR3", 11, null, "Wheel button for gamepad R3. G29: R3 = 11.");
 		WbL3 = melonPreferences_Category.CreateEntry("WheelBtnL3", 12, null, "Wheel button for gamepad L3. G29: L3 = 12.");
+
+		WbHandbrake = melonPreferences_Category.CreateEntry("WheelBtnHandbrake", 0, null, "Wheel button: dedicated handbrake / e-brake (0 = unassigned).");
+		WbHeadlights = melonPreferences_Category.CreateEntry("WheelBtnHeadlights", 0, null, "Wheel button: toggle headlights (0 = unassigned).");
+		WbRoof = melonPreferences_Category.CreateEntry("WheelBtnRoof", 0, null, "Wheel button: toggle cockpit roof (0 = unassigned).");
+		WbInteriorStyle = melonPreferences_Category.CreateEntry("WheelBtnInteriorStyle", 0, null, "Wheel button: cycle cockpit interior trim style (0 = unassigned).");
+		WbZoomIn = melonPreferences_Category.CreateEntry("WheelBtnZoomIn", 0, null, "Wheel button: camera zoom in (0 = unassigned).");
+		WbZoomOut = melonPreferences_Category.CreateEntry("WheelBtnZoomOut", 0, null, "Wheel button: camera zoom out (0 = unassigned).");
+		WbSeatForward = melonPreferences_Category.CreateEntry("WheelBtnSeatForward", 0, null, "Wheel button: seat forward 1 cm (0 = unassigned).");
+		WbSeatBack = melonPreferences_Category.CreateEntry("WheelBtnSeatBack", 0, null, "Wheel button: seat backward 1 cm (0 = unassigned).");
+
+		ButtonBoxEnabled = melonPreferences_Category.CreateEntry("ButtonBoxEnabled", default_value: true, null, "Enable secondary USB button box / QMK macro keypad listener.");
+		ButtonBoxDebugLog = melonPreferences_Category.CreateEntry("ButtonBoxDebugLog", default_value: true, null, "Log virtual key codes when pressed on button box or keyboard.");
+		BbKeyHandbrake = melonPreferences_Category.CreateEntry("BbKeyHandbrake", 0, null, "Button box virtual key code for handbrake (0 = unassigned).");
+		BbKeyHeadlights = melonPreferences_Category.CreateEntry("BbKeyHeadlights", 0, null, "Button box virtual key code for headlights (0 = unassigned).");
+		BbKeyRoof = melonPreferences_Category.CreateEntry("BbKeyRoof", 0, null, "Button box virtual key code for cockpit roof toggle (0 = unassigned).");
+		BbKeyInteriorStyle = melonPreferences_Category.CreateEntry("BbKeyInteriorStyle", 0, null, "Button box virtual key code for interior trim style cycle (0 = unassigned).");
+		BbKeyZoomIn = melonPreferences_Category.CreateEntry("BbKeyZoomIn", 0, null, "Button box virtual key code for zoom in (0 = unassigned).");
+		BbKeyZoomOut = melonPreferences_Category.CreateEntry("BbKeyZoomOut", 0, null, "Button box virtual key code for zoom out (0 = unassigned).");
+		BbKeySeatForward = melonPreferences_Category.CreateEntry("BbKeySeatForward", 0, null, "Button box virtual key code for seat forward (0 = unassigned).");
+		BbKeySeatBack = melonPreferences_Category.CreateEntry("BbKeySeatBack", 0, null, "Button box virtual key code for seat backward (0 = unassigned).");
+		BbKeySeatUp = melonPreferences_Category.CreateEntry("BbKeySeatUp", 0, null, "Button box virtual key code for seat up (0 = unassigned).");
+		BbKeySeatDown = melonPreferences_Category.CreateEntry("BbKeySeatDown", 0, null, "Button box virtual key code for seat down (0 = unassigned).");
+		BbKeyRecenter = melonPreferences_Category.CreateEntry("BbKeyRecenter", 0, null, "Button box virtual key code for VR recenter (0 = unassigned).");
+		BbKeyHud = melonPreferences_Category.CreateEntry("BbKeyHud", 0, null, "Button box virtual key code for HUD toggle (0 = unassigned).");
 		FfbOn = melonPreferences_Category.CreateEntry("FfbOn", default_value: true, null, "Force feedback for DirectInput wheels (G29 etc.) from the VR mod. Turn TrailWheel's own force feedback off so they don't fight.");
 		FfbStrength = melonPreferences_Category.CreateEntry("FfbStrength3", 1f, null, "Overall force feedback strength (0..1).");
 		FfbMaxForce = melonPreferences_Category.CreateEntry("FfbMaxForce", 0.85f, null, "Cap on the main steering force (0..1).");

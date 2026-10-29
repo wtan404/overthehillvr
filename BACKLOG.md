@@ -28,24 +28,29 @@ This document maintains the official, prioritized feature queue and technical ro
 ---
 
 ### 3. Multi-Device DirectInput & Secondary USB Button Box Poller
-- **Status**: Queued / Hardware Profile Identified (`VID 6E61` / `PID 6062`).
-- **Target Hardware**: Secondary USB macro keypads, custom DIY button boxes, and rotary dial controllers.
+- **Status**: Completed & Verified on `dev` and `openxr-support`.
+- **Target Hardware**: Secondary USB macro keypads, custom DIY button boxes (nullbits `VID 6E61` / `PID 6062`), and rotary dial controllers.
 - **Scope & Deliverables**:
-  - Extend `VrDriver.cs` device enumeration to support multi-device polling (`buttonBoxDev` alongside `wheelDev`).
-  - Read secondary controller button states and merge with `WheelPad` bitmasks.
-  - Support high-speed rotary encoder pulse detection (CW, CCW, and center push click).
+  - Extended input architecture via `ButtonBoxBridge` to support multi-device and composite keyboard/macro polling.
+  - Full 256 virtual key monitoring with automatic real-time troubleshooting logging (`ButtonBoxDebugLog` to console and `UserData/ButtonBox.log`).
+  - High-speed rotary encoder pulse capture and keycode mapping.
+  - Unified pad bit synthesis injecting directly into virtual gamepad event stream.
 
 ---
 
 ### 4. Expanded In-Game Wheel & Cockpit Action Bindings
-- **Status**: Ready for implementation.
-- **Target**: Expose vehicle actions currently locked to D-Pad / POV hat to dedicated, configurable wheel buttons.
+- **Status**: Completed & Verified on `dev` and `openxr-support`.
+- **Target**: Expose vehicle actions previously locked to D-Pad / POV hat to dedicated, configurable wheel buttons and button box keys.
 - **Scope & Deliverables**:
-  - `WheelBtnHandbrake`: Dedicated handbrake / parking brake toggle (currently D-Pad Right).
-  - `WheelBtnHeadlights`: Headlights on / off (currently D-Pad Left).
-  - `WheelBtnRoof`: Cockpit roof toggle & interior style (currently D-Pad Up).
-  - `WheelBtnZoom`: Camera zoom & perspective cycling (currently D-Pad Down).
-  - `WheelBtnSeatForward` / `WheelBtnSeatBack`: Driver horizontal seated eye-line adjustment.
+  - `WheelBtnHandbrake` / `BbKeyHandbrake`: Dedicated handbrake / parking brake toggle (Gamepad D-Pad Right, bit 3).
+  - `WheelBtnHeadlights` / `BbKeyHeadlights`: Headlights toggle (Gamepad D-Pad Left, bit 2).
+  - `WheelBtnRoof` / `BbKeyRoof`: Dedicated cockpit roof toggle.
+  - `WheelBtnInteriorStyle` / `BbKeyInteriorStyle`: Direct interior trim style cycle.
+  - `WheelBtnZoomIn` / `BbKeyZoomIn`: Camera zoom in (Gamepad D-Pad Up, bit 0).
+  - `WheelBtnZoomOut` / `BbKeyZoomOut`: Camera zoom out (Gamepad D-Pad Down, bit 1).
+  - `WheelBtnSeatForward` / `WheelBtnSeatBack` / `BbKeySeatForward` / `BbKeySeatBack`: Driver horizontal seated eye-line adjustment.
+  - `BbKeySeatUp` / `BbKeySeatDown`: Driver vertical seated eye-line adjustment from secondary keypad.
+  - `BbKeyRecenter` / `BbKeyHud`: One-touch VR recenter and HUD toggle from secondary keypad.
 
 ---
 
