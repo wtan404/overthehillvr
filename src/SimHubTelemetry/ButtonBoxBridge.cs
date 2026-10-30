@@ -6,12 +6,13 @@ using System.Runtime.InteropServices;
 namespace OverTheHillVR.Hardware
 {
     /// <summary>
-    /// Dual input poller & bridge for secondary USB button boxes, QMK/VIA macro keypads
-    /// (e.g. nullbits VID 6E61 / PID 6062), rotary encoders, and expanded steering wheel bindings.
+    /// Universal input bridge for secondary USB button boxes, QMK/VIA macro keypads
+    /// (such as nullbits VID 6E61 / PID 6062), and secondary DirectInput gamepads.
+    /// Polling runs asynchronously via GetAsyncKeyState to capture full 256 Virtual Key states.
+    /// Provides 100% 1:1 parity with steering wheel controls.
     /// </summary>
     public static class ButtonBoxBridge
     {
-        // --- Windows User32 P/Invoke ---
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
@@ -21,9 +22,7 @@ namespace OverTheHillVR.Hardware
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
-        private static readonly uint CurrentPid = (uint)Environment.ProcessId;
-
-        // --- Key & Button States ---
+        private static readonly uint CurrentPid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
         private static readonly bool[] KeyNow = new bool[256];
         private static readonly bool[] KeyPrev = new bool[256];
         private static ulong _prevWheelButtons;
@@ -42,6 +41,22 @@ namespace OverTheHillVR.Hardware
         public static int WheelBtnZoomOut = 0;
         public static int WheelBtnSeatForward = 0;
         public static int WheelBtnSeatBack = 0;
+        public static int WheelBtnSeatUp = 0;
+        public static int WheelBtnSeatDown = 0;
+        public static int WheelBtnRecenter = 0;
+        public static int WheelBtnHud = 0;
+        public static int WheelBtnScreenshot = 0;
+        public static int WheelBtnVrHold = 0;
+        public static int WheelBtnMenu = 0;
+        public static int WheelBtnView = 0;
+        public static int WheelBtnA = 0;
+        public static int WheelBtnB = 0;
+        public static int WheelBtnX = 0;
+        public static int WheelBtnY = 0;
+        public static int WheelBtnLB = 0;
+        public static int WheelBtnRB = 0;
+        public static int WheelBtnL3 = 0;
+        public static int WheelBtnR3 = 0;
 
         // Button Box Virtual Key (VK) Bindings (e.g. for nullbits QMK / VIA macro pads)
         public static int BbKeyHandbrake = 0;
@@ -56,6 +71,18 @@ namespace OverTheHillVR.Hardware
         public static int BbKeySeatDown = 0;
         public static int BbKeyRecenter = 0;
         public static int BbKeyHud = 0;
+        public static int BbKeyScreenshot = 0;
+        public static int BbKeyVrHold = 0;
+        public static int BbKeyMenu = 0;
+        public static int BbKeyView = 0;
+        public static int BbKeyA = 0;
+        public static int BbKeyB = 0;
+        public static int BbKeyX = 0;
+        public static int BbKeyY = 0;
+        public static int BbKeyLB = 0;
+        public static int BbKeyRB = 0;
+        public static int BbKeyL3 = 0;
+        public static int BbKeyR3 = 0;
 
         // Secondary DirectInput Controller Button Bindings (1-based)
         public static int BbBtnHandbrake = 0;
@@ -70,6 +97,18 @@ namespace OverTheHillVR.Hardware
         public static int BbBtnSeatDown = 0;
         public static int BbBtnRecenter = 0;
         public static int BbBtnHud = 0;
+        public static int BbBtnScreenshot = 0;
+        public static int BbBtnVrHold = 0;
+        public static int BbBtnMenu = 0;
+        public static int BbBtnView = 0;
+        public static int BbBtnA = 0;
+        public static int BbBtnB = 0;
+        public static int BbBtnX = 0;
+        public static int BbBtnY = 0;
+        public static int BbBtnLB = 0;
+        public static int BbBtnRB = 0;
+        public static int BbBtnL3 = 0;
+        public static int BbBtnR3 = 0;
 
         private static bool _configLoaded;
         private static float _nextConfigCheck;
@@ -78,15 +117,19 @@ namespace OverTheHillVR.Hardware
         private static MethodInfo _miToggleRoof;
         private static MethodInfo _miNextInteriorStyle;
         private static MethodInfo _miRecenter;
+        private static MethodInfo _miStopVr;
+        private static MethodInfo _miStartVr;
         private static FieldInfo _fiHudOn;
         private static FieldInfo _fiSeatSaveAt;
+        private static FieldInfo _fiShotPending;
+        private static FieldInfo _fiVrOn;
         private static Type _modType;
         private static bool _reflectionCached;
 
         public static void Init()
         {
             LoadConfig();
-            LogMsg("[ButtonBox] Bridge initialized. Monitoring keyboard/macro keys & secondary controllers.");
+            LogMsg("[ButtonBox] Bridge initialized with 1:1 action parity. Monitoring macro keys & controllers.");
         }
 
         public static void LoadConfig()
@@ -117,8 +160,12 @@ namespace OverTheHillVR.Hardware
                     string key = parts[0].Trim();
                     string val = parts[1].Trim().Trim('"');
 
-                    // Wheel bindings
-                    if (key.Equals("WheelBtnHandbrake", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnHandbrake);
+                    // Global enable / debug settings
+                    if (key.Equals("ButtonBoxEnabled", StringComparison.OrdinalIgnoreCase)) bool.TryParse(val, out ButtonBoxEnabled);
+                    else if (key.Equals("ButtonBoxDebugLog", StringComparison.OrdinalIgnoreCase)) bool.TryParse(val, out ButtonBoxDebugLog);
+
+                    // Wheel bindings (DirectInput 1-based)
+                    else if (key.Equals("WheelBtnHandbrake", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnHandbrake);
                     else if (key.Equals("WheelBtnHeadlights", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnHeadlights);
                     else if (key.Equals("WheelBtnRoof", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnRoof);
                     else if (key.Equals("WheelBtnInteriorStyle", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnInteriorStyle);
@@ -126,10 +173,24 @@ namespace OverTheHillVR.Hardware
                     else if (key.Equals("WheelBtnZoomOut", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnZoomOut);
                     else if (key.Equals("WheelBtnSeatForward", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnSeatForward);
                     else if (key.Equals("WheelBtnSeatBack", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnSeatBack);
+                    else if (key.Equals("WheelBtnSeatUp", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnSeatUp);
+                    else if (key.Equals("WheelBtnSeatDown", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnSeatDown);
+                    else if (key.Equals("WheelBtnRecenter", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnRecenter);
+                    else if (key.Equals("WheelBtnHud", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnHud);
+                    else if (key.Equals("WheelBtnScreenshot", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnScreenshot);
+                    else if (key.Equals("WheelBtnVrHold", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnVrHold);
+                    else if (key.Equals("WheelBtnMenu", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnMenu);
+                    else if (key.Equals("WheelBtnView", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnView);
+                    else if (key.Equals("WheelBtnA", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnA);
+                    else if (key.Equals("WheelBtnB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnB);
+                    else if (key.Equals("WheelBtnX", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnX);
+                    else if (key.Equals("WheelBtnY", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnY);
+                    else if (key.Equals("WheelBtnLB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnLB);
+                    else if (key.Equals("WheelBtnRB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnRB);
+                    else if (key.Equals("WheelBtnL3", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnL3);
+                    else if (key.Equals("WheelBtnR3", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out WheelBtnR3);
 
-                    // Button box settings & keys
-                    else if (key.Equals("ButtonBoxEnabled", StringComparison.OrdinalIgnoreCase)) bool.TryParse(val, out ButtonBoxEnabled);
-                    else if (key.Equals("ButtonBoxDebugLog", StringComparison.OrdinalIgnoreCase)) bool.TryParse(val, out ButtonBoxDebugLog);
+                    // Button Box Virtual Key (VK) Bindings
                     else if (key.Equals("BbKeyHandbrake", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyHandbrake);
                     else if (key.Equals("BbKeyHeadlights", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyHeadlights);
                     else if (key.Equals("BbKeyRoof", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyRoof);
@@ -142,8 +203,20 @@ namespace OverTheHillVR.Hardware
                     else if (key.Equals("BbKeySeatDown", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeySeatDown);
                     else if (key.Equals("BbKeyRecenter", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyRecenter);
                     else if (key.Equals("BbKeyHud", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyHud);
+                    else if (key.Equals("BbKeyScreenshot", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyScreenshot);
+                    else if (key.Equals("BbKeyVrHold", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyVrHold);
+                    else if (key.Equals("BbKeyMenu", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyMenu);
+                    else if (key.Equals("BbKeyView", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyView);
+                    else if (key.Equals("BbKeyA", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyA);
+                    else if (key.Equals("BbKeyB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyB);
+                    else if (key.Equals("BbKeyX", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyX);
+                    else if (key.Equals("BbKeyY", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyY);
+                    else if (key.Equals("BbKeyLB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyLB);
+                    else if (key.Equals("BbKeyRB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyRB);
+                    else if (key.Equals("BbKeyL3", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyL3);
+                    else if (key.Equals("BbKeyR3", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbKeyR3);
 
-                    // Secondary DirectInput controller bindings
+                    // Secondary DirectInput Gamepad Bindings (1-based)
                     else if (key.Equals("BbBtnHandbrake", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnHandbrake);
                     else if (key.Equals("BbBtnHeadlights", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnHeadlights);
                     else if (key.Equals("BbBtnRoof", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnRoof);
@@ -156,6 +229,18 @@ namespace OverTheHillVR.Hardware
                     else if (key.Equals("BbBtnSeatDown", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnSeatDown);
                     else if (key.Equals("BbBtnRecenter", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnRecenter);
                     else if (key.Equals("BbBtnHud", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnHud);
+                    else if (key.Equals("BbBtnScreenshot", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnScreenshot);
+                    else if (key.Equals("BbBtnVrHold", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnVrHold);
+                    else if (key.Equals("BbBtnMenu", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnMenu);
+                    else if (key.Equals("BbBtnView", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnView);
+                    else if (key.Equals("BbBtnA", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnA);
+                    else if (key.Equals("BbBtnB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnB);
+                    else if (key.Equals("BbBtnX", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnX);
+                    else if (key.Equals("BbBtnY", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnY);
+                    else if (key.Equals("BbBtnLB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnLB);
+                    else if (key.Equals("BbBtnRB", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnRB);
+                    else if (key.Equals("BbBtnL3", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnL3);
+                    else if (key.Equals("BbBtnR3", StringComparison.OrdinalIgnoreCase)) int.TryParse(val, out BbBtnR3);
                 }
 
                 _configLoaded = true;
@@ -177,7 +262,7 @@ namespace OverTheHillVR.Hardware
             }
             catch
             {
-                return true; // Fallback to allow input if check fails
+                return true;
             }
         }
 
@@ -233,8 +318,7 @@ namespace OverTheHillVR.Hardware
         }
 
         /// <summary>
-        /// Process virtual gamepad bits and merges dedicated vehicle bindings from wheel and button box.
-        /// Pad bits: Bit 0 = DPadUp (ZoomIn/Roof), Bit 1 = DPadDown (ZoomOut), Bit 2 = DPadLeft (Headlights), Bit 3 = DPadRight (Handbrake).
+        /// Merges wheel buttons, secondary gamepads, and button box virtual keys into the game's virtual gamepad pad bits.
         /// </summary>
         public static uint ProcessPad(uint currentPad, ulong wheelButtons, ulong secondaryButtons)
         {
@@ -270,6 +354,86 @@ namespace OverTheHillVR.Hardware
                 currentPad |= 2u;
             }
 
+            // Menu / Pause / Start (Bit 12, mask 0x1000 = 4096)
+            if (IsBtnHeld(WheelBtnMenu, wheelButtons) ||
+                IsBtnHeld(BbBtnMenu, secondaryButtons) ||
+                IsKeyHeld(BbKeyMenu))
+            {
+                currentPad |= 4096u;
+            }
+
+            // View / Back / Select (Bit 13, mask 0x2000 = 8192)
+            if (IsBtnHeld(WheelBtnView, wheelButtons) ||
+                IsBtnHeld(BbBtnView, secondaryButtons) ||
+                IsKeyHeld(BbKeyView))
+            {
+                currentPad |= 8192u;
+            }
+
+            // South / A (Bit 6, mask 0x40 = 64)
+            if (IsBtnHeld(WheelBtnA, wheelButtons) ||
+                IsBtnHeld(BbBtnA, secondaryButtons) ||
+                IsKeyHeld(BbKeyA))
+            {
+                currentPad |= 64u;
+            }
+
+            // East / B (Bit 5, mask 0x20 = 32)
+            if (IsBtnHeld(WheelBtnB, wheelButtons) ||
+                IsBtnHeld(BbBtnB, secondaryButtons) ||
+                IsKeyHeld(BbKeyB))
+            {
+                currentPad |= 32u;
+            }
+
+            // West / X (Bit 7, mask 0x80 = 128)
+            if (IsBtnHeld(WheelBtnX, wheelButtons) ||
+                IsBtnHeld(BbBtnX, secondaryButtons) ||
+                IsKeyHeld(BbKeyX))
+            {
+                currentPad |= 128u;
+            }
+
+            // North / Y (Bit 4, mask 0x10 = 16)
+            if (IsBtnHeld(WheelBtnY, wheelButtons) ||
+                IsBtnHeld(BbBtnY, secondaryButtons) ||
+                IsKeyHeld(BbKeyY))
+            {
+                currentPad |= 16u;
+            }
+
+            // Left Shoulder / LB (Bit 10, mask 0x400 = 1024)
+            if (IsBtnHeld(WheelBtnLB, wheelButtons) ||
+                IsBtnHeld(BbBtnLB, secondaryButtons) ||
+                IsKeyHeld(BbKeyLB))
+            {
+                currentPad |= 1024u;
+            }
+
+            // Right Shoulder / RB (Bit 11, mask 0x800 = 2048)
+            if (IsBtnHeld(WheelBtnRB, wheelButtons) ||
+                IsBtnHeld(BbBtnRB, secondaryButtons) ||
+                IsKeyHeld(BbKeyRB))
+            {
+                currentPad |= 2048u;
+            }
+
+            // Left Thumbstick Click / L3 (Bit 8, mask 0x100 = 256)
+            if (IsBtnHeld(WheelBtnL3, wheelButtons) ||
+                IsBtnHeld(BbBtnL3, secondaryButtons) ||
+                IsKeyHeld(BbKeyL3))
+            {
+                currentPad |= 256u;
+            }
+
+            // Right Thumbstick Click / R3 / Horn (Bit 9, mask 0x200 = 512)
+            if (IsBtnHeld(WheelBtnR3, wheelButtons) ||
+                IsBtnHeld(BbBtnR3, secondaryButtons) ||
+                IsKeyHeld(BbKeyR3))
+            {
+                currentPad |= 512u;
+            }
+
             _prevWheelButtons = wheelButtons;
             _prevSecondaryButtons = secondaryButtons;
 
@@ -278,7 +442,7 @@ namespace OverTheHillVR.Hardware
 
         /// <summary>
         /// Frame tick invoked from VrDriver.Update() to process direct driver commands:
-        /// Roof, Trim Style, Recenter, HUD, and Seat adjustments.
+        /// Roof, Trim Style, Recenter, HUD, Screenshot, VR Toggle, and Seat adjustments.
         /// </summary>
         public static void FrameTick(object vrDriverInstance, float timeNow, ulong wheelButtons, ulong secondaryButtons)
         {
@@ -305,14 +469,16 @@ namespace OverTheHillVR.Hardware
             }
 
             // 3. VR Recenter
-            if (IsBtnDown(BbBtnRecenter, secondaryButtons, _prevSecondaryButtons) ||
+            if (IsBtnDown(WheelBtnRecenter, wheelButtons, _prevWheelButtons) ||
+                IsBtnDown(BbBtnRecenter, secondaryButtons, _prevSecondaryButtons) ||
                 IsKeyDown(BbKeyRecenter))
             {
                 try { _miRecenter?.Invoke(vrDriverInstance, null); } catch {}
             }
 
             // 4. HUD Toggle
-            if (IsBtnDown(BbBtnHud, secondaryButtons, _prevSecondaryButtons) ||
+            if (IsBtnDown(WheelBtnHud, wheelButtons, _prevWheelButtons) ||
+                IsBtnDown(BbBtnHud, secondaryButtons, _prevSecondaryButtons) ||
                 IsKeyDown(BbKeyHud))
             {
                 try
@@ -327,7 +493,35 @@ namespace OverTheHillVR.Hardware
                 catch {}
             }
 
-            // 5. Driver Seat Adjustment (Horizontal Forward / Back)
+            // 5. Screenshot
+            if (IsBtnDown(WheelBtnScreenshot, wheelButtons, _prevWheelButtons) ||
+                IsBtnDown(BbBtnScreenshot, secondaryButtons, _prevSecondaryButtons) ||
+                IsKeyDown(BbKeyScreenshot))
+            {
+                try
+                {
+                    _fiShotPending?.SetValue(vrDriverInstance, true);
+                    LogMsg("[ButtonBox] Screenshot requested.");
+                }
+                catch {}
+            }
+
+            // 6. VR Toggle
+            if (IsBtnDown(WheelBtnVrHold, wheelButtons, _prevWheelButtons) ||
+                IsBtnDown(BbBtnVrHold, secondaryButtons, _prevSecondaryButtons) ||
+                IsKeyDown(BbKeyVrHold))
+            {
+                try
+                {
+                    bool vrOn = _fiVrOn != null && (bool)_fiVrOn.GetValue(vrDriverInstance);
+                    if (vrOn) _miStopVr?.Invoke(vrDriverInstance, null);
+                    else _miStartVr?.Invoke(vrDriverInstance, null);
+                    LogMsg($"[ButtonBox] VR toggled {(vrOn ? "off" : "on")}.");
+                }
+                catch {}
+            }
+
+            // 7. Driver Seat Adjustment (Horizontal Forward / Back)
             float seatDelta = 0f;
             if (IsBtnHeld(WheelBtnSeatForward, wheelButtons) ||
                 IsBtnHeld(BbBtnSeatForward, secondaryButtons) ||
@@ -347,14 +541,16 @@ namespace OverTheHillVR.Hardware
                 AdjustSeatForward(vrDriverInstance, seatDelta, timeNow);
             }
 
-            // 6. Driver Seat Adjustment (Vertical Up / Down)
+            // 8. Driver Seat Adjustment (Vertical Up / Down)
             float seatUpDelta = 0f;
-            if (IsBtnHeld(BbBtnSeatUp, secondaryButtons) ||
+            if (IsBtnHeld(WheelBtnSeatUp, wheelButtons) ||
+                IsBtnHeld(BbBtnSeatUp, secondaryButtons) ||
                 IsKeyHeld(BbKeySeatUp))
             {
                 seatUpDelta += 0.005f;
             }
-            if (IsBtnHeld(BbBtnSeatDown, secondaryButtons) ||
+            if (IsBtnHeld(WheelBtnSeatDown, wheelButtons) ||
+                IsBtnHeld(BbBtnSeatDown, secondaryButtons) ||
                 IsKeyHeld(BbKeySeatDown))
             {
                 seatUpDelta -= 0.005f;
@@ -425,8 +621,12 @@ namespace OverTheHillVR.Hardware
                 _miToggleRoof = dt.GetMethod("ToggleRoof", flags);
                 _miNextInteriorStyle = dt.GetMethod("NextInteriorStyle", flags);
                 _miRecenter = dt.GetMethod("Recenter", flags);
+                _miStopVr = dt.GetMethod("StopVr", flags);
+                _miStartVr = dt.GetMethod("StartVr", flags);
                 _fiHudOn = dt.GetField("hudOn", flags);
                 _fiSeatSaveAt = dt.GetField("seatSaveAt", flags);
+                _fiShotPending = dt.GetField("shotPending", flags);
+                _fiVrOn = dt.GetField("vrOn", flags);
                 _modType = dt.Assembly.GetType("OverTheHillVR.Mod");
 
                 _reflectionCached = true;
@@ -447,16 +647,9 @@ namespace OverTheHillVR.Hardware
 
         public static string GetKeyName(int vk)
         {
-            // Standard function keys F1-F24
             if (vk >= 0x70 && vk <= 0x87) return $"F{vk - 0x70 + 1}";
-
-            // Numpad 0-9
             if (vk >= 0x60 && vk <= 0x69) return $"NumPad{vk - 0x60}";
-
-            // Alphanumeric A-Z
             if (vk >= 0x41 && vk <= 0x5A) return ((char)vk).ToString();
-
-            // Digits 0-9
             if (vk >= 0x30 && vk <= 0x39) return ((char)vk).ToString();
 
             return vk switch

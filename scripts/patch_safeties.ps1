@@ -863,7 +863,7 @@ if (Test-Path $steamDir) {
             }
         }
 
-        # Check for [ButtonBox] section
+        # Check for [ButtonBox] section or missing keys within [ButtonBox]
         if ($content -notmatch "(?m)^\s*\[ButtonBox\]") {
             $buttonBoxSection = @"
 
@@ -884,6 +884,18 @@ BbKeySeatUp = 0
 BbKeySeatDown = 0
 BbKeyRecenter = 0
 BbKeyHud = 0
+BbKeyScreenshot = 0
+BbKeyVrHold = 0
+BbKeyMenu = 0
+BbKeyView = 0
+BbKeyA = 0
+BbKeyB = 0
+BbKeyX = 0
+BbKeyY = 0
+BbKeyLB = 0
+BbKeyRB = 0
+BbKeyL3 = 0
+BbKeyR3 = 0
 # Secondary DirectInput Game Controller Button Bindings (1-based, 0 = unassigned)
 BbBtnHandbrake = 0
 BbBtnHeadlights = 0
@@ -897,9 +909,39 @@ BbBtnSeatUp = 0
 BbBtnSeatDown = 0
 BbBtnRecenter = 0
 BbBtnHud = 0
+BbBtnScreenshot = 0
+BbBtnVrHold = 0
+BbBtnMenu = 0
+BbBtnView = 0
+BbBtnA = 0
+BbBtnB = 0
+BbBtnX = 0
+BbBtnY = 0
+BbBtnLB = 0
+BbBtnRB = 0
+BbBtnL3 = 0
+BbBtnR3 = 0
 "@
             $content = $content.TrimEnd() + "`r`n" + $buttonBoxSection + "`r`n"
             $modified = $true
+        } else {
+            # Check for any missing keys in existing [ButtonBox] section
+            $allBbKeys = @(
+                "BbKeyScreenshot", "BbKeyVrHold", "BbKeyMenu", "BbKeyView",
+                "BbKeyA", "BbKeyB", "BbKeyX", "BbKeyY", "BbKeyLB", "BbKeyRB", "BbKeyL3", "BbKeyR3",
+                "BbBtnScreenshot", "BbBtnVrHold", "BbBtnMenu", "BbBtnView",
+                "BbBtnA", "BbBtnB", "BbBtnX", "BbBtnY", "BbBtnLB", "BbBtnRB", "BbBtnL3", "BbBtnR3"
+            )
+            $missingBb = @()
+            foreach ($bk in $allBbKeys) {
+                if ($content -notmatch "(?m)^\s*$bk\s*=") {
+                    $missingBb += "$bk = 0"
+                }
+            }
+            if ($missingBb.Count -gt 0) {
+                $content = $content.TrimEnd() + "`r`n" + ($missingBb -join "`r`n") + "`r`n"
+                $modified = $true
+            }
         }
 
         if ($modified) {
@@ -913,4 +955,4 @@ BbBtnHud = 0
         Copy-Item $repoCfg $steamCfg -Force
         Write-Output "Copied fresh MelonPreferences.cfg to $steamCfg"
     }
-}
+}

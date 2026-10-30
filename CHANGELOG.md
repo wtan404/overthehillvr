@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [1.8.1-dev] - 2026-10-29
 ### Added & Enhanced
+- **Full 1:1 Action Parity Across Steering Wheel and Button Box**:
+  - Expanded `ButtonBoxBridge` to support all remaining gamepad and VR functions across `BbKey...` and `BbBtn...`:
+    - Pause / Menu trigger (`BbKeyMenu` / `BbBtnMenu` mapped to Pad Bit 12 / `0x1000 = 4096`).
+    - View / Back / Select (`BbKeyView` / `BbBtnView` mapped to Pad Bit 13 / `0x2000 = 8192`).
+    - Full Gamepad Face Buttons: South/A (Bit 6 / `0x40`), East/B (Bit 5 / `0x20`), West/X (Bit 7 / `0x80`), North/Y (Bit 4 / `0x10`).
+    - Gamepad Bumpers & Stick Clicks: LB (Bit 10 / `0x400`), RB (Bit 11 / `0x800`), L3 (Bit 8 / `0x100`), R3/Horn (Bit 9 / `0x200`).
+    - In-game Screenshot (`BbKeyScreenshot` / `BbBtnScreenshot` triggering `shotPending`) and VR Mode toggle (`BbKeyVrHold` / `BbBtnVrHold`).
+  - Added unit test cases to `SimHubTelemetry.Tests` verifying synthesis of Menu, View, and Face Button gamepad bits.
+  - Applied verified keypad assignments (`BbKeyMenu = 48`, `BbKeySeatDown = 51`, `BbKeySeatUp = 52`, `BbKeyRecenter = 54`, `BbKeyHandbrake = 56`, `BbKeyHeadlights = 55`, `BbKeyHud = 57`, `BbKeyInteriorStyle = 53`) directly into active Steam configuration.
 - **Dedicated Feature Branch (`feat/buttonbox-support`)**:
   - Isolated the full button box poller, 256 VK diagnostic logger, expanded cockpit/wheel action mappings, and Steam synchronization pipeline into dedicated remote branch `feat/buttonbox-support` directly rooted on `main` (v1.8.0 release).
   - Maintained full synchronization across active development branches (`dev`, `openxr-support`, and `feat/buttonbox-support`).

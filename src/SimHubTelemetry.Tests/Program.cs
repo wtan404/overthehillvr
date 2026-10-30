@@ -108,6 +108,19 @@ namespace SimHubTelemetry.Tests
                     return 4;
                 }
                 Console.WriteLine($"[OK] Pad bit mapping: wheel buttons 5 and 6 correctly asserted Handbrake (8) and Headlights (4) -> pad=0x{mappedPad:X2}");
+
+                // Test Menu (Pause), View (Back), and Face Button mappings
+                ButtonBoxBridge.BbBtnMenu = 10;
+                ButtonBoxBridge.BbBtnView = 11;
+                ButtonBoxBridge.BbBtnA = 1;
+                ulong testSecButtons = (1UL << 9) | (1UL << 10) | (1UL << 0);
+                uint padWithMenu = ButtonBoxBridge.ProcessPad(0u, 0UL, testSecButtons);
+                if ((padWithMenu & 4096u) == 0 || (padWithMenu & 8192u) == 0 || (padWithMenu & 64u) == 0)
+                {
+                    Console.WriteLine($"[FAIL] Menu/View/A mapping failed! pad=0x{padWithMenu:X4}");
+                    return 5;
+                }
+                Console.WriteLine($"[OK] Menu (Bit 12 = 4096), View (Bit 13 = 8192), Button A (Bit 6 = 64) verified cleanly -> pad=0x{padWithMenu:X4}");
                 Console.WriteLine("[ALL BUTTONBOX BRIDGE TESTS PASSED]");
                 return 0;
             }
