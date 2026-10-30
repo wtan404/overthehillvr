@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [1.8.1-dev] - 2026-10-29
 ### Added & Enhanced
+- **Dedicated Feature Branch (`feat/buttonbox-support`)**:
+  - Isolated the full button box poller, 256 VK diagnostic logger, expanded cockpit/wheel action mappings, and Steam synchronization pipeline into dedicated remote branch `feat/buttonbox-support` directly rooted on `main` (v1.8.0 release).
+  - Maintained full synchronization across active development branches (`dev`, `openxr-support`, and `feat/buttonbox-support`).
 - **Non-Destructive Steam Configuration Synchronization Pipeline**:
   - Enhanced `scripts/patch_safeties.ps1` (Step 14) to perform automated, non-destructive configuration reconciliation between the workspace repository and the active Steam installation (`.../over the hill/UserData/MelonPreferences.cfg`).
   - Automatically detects and merges missing vehicle action bindings (`WheelBtnHandbrake`, `WheelBtnHeadlights`, `WheelBtnRoof`, `WheelBtnInteriorStyle`, `WheelBtnZoomIn`, `WheelBtnZoomOut`, `WheelBtnSeatForward`, `WheelBtnSeatBack`) directly under `[OverTheHillVR]`.
