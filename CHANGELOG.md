@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [1.8.1-dev] - 2026-10-29
 ### Added & Enhanced
+- **Non-Destructive Steam Configuration Synchronization Pipeline**:
+  - Enhanced `scripts/patch_safeties.ps1` (Step 14) to perform automated, non-destructive configuration reconciliation between the workspace repository and the active Steam installation (`.../over the hill/UserData/MelonPreferences.cfg`).
+  - Automatically detects and merges missing vehicle action bindings (`WheelBtnHandbrake`, `WheelBtnHeadlights`, `WheelBtnRoof`, `WheelBtnInteriorStyle`, `WheelBtnZoomIn`, `WheelBtnZoomOut`, `WheelBtnSeatForward`, `WheelBtnSeatBack`) directly under `[OverTheHillVR]`.
+  - Appends the complete `[ButtonBox]` configuration section with full keyboard VK macro entries and secondary controller bindings.
+  - Strictly preserves 100% of the player's existing custom button mappings (e.g., custom Fanatec button bindings for seat, view, menu, and gamepad buttons).
+  - Enhanced `SimHubTelemetry.Tests` test harness to dynamically resolve and verify JIT IL compilation against active release DLLs.
 - **Secondary USB Button Box, QMK/VIA Macro Keypad & Rotary Encoder Poller**:
   - **Identified Hardware Root Cause**: Diagnosed nullbits device (`VID 6E61` / `PID 6062`, e.g., TIDBIT / Bit-C macro pad) operating as a composite USB HID Keyboard + Mouse rather than DirectInput game controller, causing standard DirectInput enumeration in `VrDriver` to bypass it.
   - **Universal 256 Virtual Key Poller (`ButtonBoxBridge`)**: Implemented high-performance background key state poller (`GetAsyncKeyState`) capturing all 256 virtual keys including extended macro keys (`F13`–`F24`, Numpad, and media controls) and rotary encoder pulses.

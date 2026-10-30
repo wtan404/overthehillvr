@@ -823,4 +823,94 @@ if (Test-Path $steamDir) {
         Copy-Item $telemPath (Join-Path $steamUserLibs "SimHubTelemetry.dll") -Force
         Write-Output "Deployed SimHubTelemetry.dll to $steamUserLibs"
     }
+
+    # Synchronize MelonPreferences.cfg to Steam UserData non-destructively
+    $steamUserData = Join-Path $steamDir "UserData"
+    $steamCfg = Join-Path $steamUserData "MelonPreferences.cfg"
+    $repoCfg = "D:\Projects\overthehillvr-fan\UserData\MelonPreferences.cfg"
+    if (Test-Path $steamCfg) {
+        $content = [System.IO.File]::ReadAllText($steamCfg)
+        $modified = $false
+
+        # Check for expanded WheelBtn... entries in [OverTheHillVR]
+        $expandedKeys = @(
+            "WheelBtnHandbrake",
+            "WheelBtnHeadlights",
+            "WheelBtnRoof",
+            "WheelBtnInteriorStyle",
+            "WheelBtnZoomIn",
+            "WheelBtnZoomOut",
+            "WheelBtnSeatForward",
+            "WheelBtnSeatBack"
+        )
+
+        $missingKeys = @()
+        foreach ($k in $expandedKeys) {
+            if ($content -notmatch "(?m)^\s*$k\s*=") {
+                $missingKeys += "$k = 0"
+            }
+        }
+
+        if ($missingKeys.Count -gt 0) {
+            $insertion = "# Expanded Dedicated Wheel Buttons (1-based DirectInput button numbers; 0 = unassigned)`r`n" + ($missingKeys -join "`r`n") + "`r`n`r`n"
+            if ($content -match "(?m)(^WheelBtnL3\s*=.*`r?`n)") {
+                $match = $Matches[1]
+                $content = $content.Replace($match, $match + "`r`n" + $insertion)
+                $modified = $true
+            } elseif ($content -match "(?m)(^\[OTHCockpitUpdate\])") {
+                $content = $content.Replace("[OTHCockpitUpdate]", $insertion + "[OTHCockpitUpdate]")
+                $modified = $true
+            }
+        }
+
+        # Check for [ButtonBox] section
+        if ($content -notmatch "(?m)^\s*\[ButtonBox\]") {
+            $buttonBoxSection = @"
+
+[ButtonBox]
+# Secondary USB Button Box, QMK/VIA Macro Keypad (nullbits VID 6E61 / PID 6062) & Rotary Encoders
+# When ButtonBoxDebugLog is true, pressing any key or turning an encoder logs its exact VK code to console and UserData/ButtonBox.log
+ButtonBoxEnabled = true
+ButtonBoxDebugLog = true
+BbKeyHandbrake = 0
+BbKeyHeadlights = 0
+BbKeyRoof = 0
+BbKeyInteriorStyle = 0
+BbKeyZoomIn = 0
+BbKeyZoomOut = 0
+BbKeySeatForward = 0
+BbKeySeatBack = 0
+BbKeySeatUp = 0
+BbKeySeatDown = 0
+BbKeyRecenter = 0
+BbKeyHud = 0
+# Secondary DirectInput Game Controller Button Bindings (1-based, 0 = unassigned)
+BbBtnHandbrake = 0
+BbBtnHeadlights = 0
+BbBtnRoof = 0
+BbBtnInteriorStyle = 0
+BbBtnZoomIn = 0
+BbBtnZoomOut = 0
+BbBtnSeatForward = 0
+BbBtnSeatBack = 0
+BbBtnSeatUp = 0
+BbBtnSeatDown = 0
+BbBtnRecenter = 0
+BbBtnHud = 0
+"@
+            $content = $content.TrimEnd() + "`r`n" + $buttonBoxSection + "`r`n"
+            $modified = $true
+        }
+
+        if ($modified) {
+            [System.IO.File]::WriteAllText($steamCfg, $content, [System.Text.Encoding]::UTF8)
+            Write-Output "Synchronized and merged new settings into $steamCfg (preserved existing user mappings)"
+        } else {
+            Write-Output "$steamCfg is already up to date"
+        }
+    } elseif (Test-Path $repoCfg) {
+        if (-not (Test-Path $steamUserData)) { New-Item -ItemType Directory -Path $steamUserData -Force | Out-Null }
+        Copy-Item $repoCfg $steamCfg -Force
+        Write-Output "Copied fresh MelonPreferences.cfg to $steamCfg"
+    }
 }

@@ -16,7 +16,10 @@ namespace SimHubTelemetry.Tests
         {
             if (args.Length > 0 && args[0] == "jit")
             {
-                return RunJitTest(args.Length > 1 ? args[1] : @"D:\Projects\overthehillvr-fan\Mods\OverTheHillVR.dll.patched");
+                string defaultPath = File.Exists(@"D:\Projects\overthehillvr-fan\Mods\OverTheHillVR.dll.patched")
+                    ? @"D:\Projects\overthehillvr-fan\Mods\OverTheHillVR.dll.patched"
+                    : @"D:\Projects\overthehillvr-fan\Mods\OverTheHillVR.dll";
+                return RunJitTest(args.Length > 1 ? args[1] : defaultPath);
             }
 
             Console.WriteLine("--- Testing SimHub Telemetry Pipeline ---");
